@@ -5,19 +5,18 @@ const helmet = require('helmet');
 const hpp = require('hpp');
 const path = require('path');
 const requestIp = require('request-ip');
+const favicon = require('serve-favicon'); // ✅ added
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('../../public/docs/swagger.json');
 const { expressRateLimit } = require('../middlewares/expressRateLimit');
 const { expressUserAgent } = require('../middlewares/expressUserAgent');
 const HttpResponse = require('../core/response/httpResponse');
-
-// const { optionsSwaggerUI, swaggerSpec } = require('~/core/modules/docsSwagger');
 const indexRoutes = require('../routes');
 const { env } = require('./env');
 const { NotFound } = require('../core/response/errorResponse');
 
 /**
- * Initialize Bootsrap Application
+ * Initialize Bootstrap Application
  */
 class App {
     constructor() {
@@ -33,23 +32,30 @@ class App {
      * Initialize Plugins
      */
     _plugins() {
+        // ✅ Trust Railway's proxy so express-rate-limit can see the real IP
+        this._app.set('trust proxy', 1);
+
         this._app.use(helmet());
         this._app.use(cors());
         this._app.use(express.json({ limit: '200mb', type: 'application/json' }));
         this._app.use(express.urlencoded({ extended: true }));
         this._app.use(express.static(path.resolve(`${__dirname}/../../public`)));
+
+        // ✅ Serve favicon if available in /public folder
+        this._app.use(favicon(path.join(__dirname, '../../public/favicon.ico')));
+
         this._app.use(hpp());
         this._app.use(requestIp.mw());
         this._app.use(userAgent.express());
 
-        // middleware
+        // custom middlewares
         this._app.use(expressRateLimit());
         this._app.use(expressUserAgent());
     }
 
     /**
-    * Initialize Swagger
-    */
+     * Initialize Swagger
+     */
     _swagger() {
         this._app.use('/v1/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
     }
@@ -59,6 +65,9 @@ class App {
      */
     _routes() {
         this._app.use(indexRoutes);
+
+        // ✅ Fallback for missing favicon.ico requests
+        this._app.get('/favicon.ico', (req, res) => res.status(204).end());
 
         // Catch error 404 endpoint not found
         this._app.use('*', function (req, _res) {
@@ -78,13 +87,10 @@ class App {
      * Create Bootstrap App
      */
     create() {
-
-        // set port
         this._app.set('port', this._port);
-
-        // return this application
         return this._app;
     }
 }
 
 module.exports = { App };
+ule.exports = { App };
